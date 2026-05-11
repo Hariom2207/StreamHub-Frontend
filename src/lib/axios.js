@@ -3,7 +3,7 @@ import { config } from './config'
 
 const api = axios.create({
   baseURL: config.apiUrl,
-  timeout: 10000,
+  timeout: 120000,
   withCredentials: true, // cookies automatically jayengi
 })
 
