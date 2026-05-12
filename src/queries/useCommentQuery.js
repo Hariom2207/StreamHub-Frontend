@@ -12,12 +12,12 @@ import { getErrorMessage } from '@/utils/errorHandler'
 
 
 export const useGetComments = (videoId) => {
-  console.log("useGetComments called, videoId:", videoId)
+  // console.log("useGetComments called, videoId:", videoId)
   
   return useInfiniteQuery({
     queryKey: QUERY_KEYS.COMMENTS(videoId),
     queryFn: async ({ pageParam = 1 }) => {
-      console.log("queryFn chala, videoId:", videoId)
+      // console.log("queryFn chala, videoId:", videoId)
       
       const result = await commentService.getVideoComments(videoId, {
         page: pageParam,

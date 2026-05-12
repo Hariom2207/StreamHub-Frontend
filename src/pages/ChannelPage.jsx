@@ -15,11 +15,7 @@ const TABS = ['Videos', 'Playlists', 'Tweets']
 
 export const ChannelPage = () => {
   const { username } = useParams()
-   const { user } = useAuthStore()
-
-// console.log("USERNAME FROM URL:", username)
-// console.log("Store user:", user?.username);
- 
+  const { user } = useAuthStore()
 
   const [activeTab, setActiveTab] = useState('Videos')
 
@@ -30,15 +26,8 @@ export const ChannelPage = () => {
     isError
   } = useGetChannel(username)
 
-  //  actual backend data
-  const channel = channelResponse
-//   console.log("channelResponse:", channelResponse)
-// console.log("channel:", channel)
-
+  const channel   = channelResponse
   const channelId = channel?._id
-
-  // console.log("channelId:", channelId)
-
 
   // ================= VIDEOS =================
   const {
@@ -46,11 +35,8 @@ export const ChannelPage = () => {
     isLoading: loadingVideos
   } = useGetVideos(
     { userId: channelId },
-    {
-      enabled: !!channelId
-    }
+    { enabled: !!channelId }
   )
-// console.log("videosData:", videosData)
 
   // ================= PLAYLISTS =================
   const {
@@ -86,16 +72,12 @@ export const ChannelPage = () => {
   }
 
   // ================= VIDEOS FLATTEN =================
-const videos = videosData?.pages?.flatMap((page) => {
-
-  // console.log("each page:", page)  
-  
-  return page?.docs ?? page?.data?.docs ?? page?.videos ?? page ?? []
+ const videos = videosData?.pages?.flatMap((page) => {
+  console.log("PAGE STRUCTURE:", page) // 👈 Ek baar dekh lo exact structure
+  return page?.videos ?? page?.data?.videos ?? page?.docs ?? []
 }) ?? []
 
-// console.log("page[0] type:", typeof videosData?.pages?.[0])
-// console.log("Array?:", Array.isArray(videosData?.pages?.[0]))
-
+console.log("FINAL VIDEOS:", videos) // 👈 Yeh bhi
   return (
     <div className="space-y-6">
 
@@ -106,7 +88,6 @@ const videos = videosData?.pages?.flatMap((page) => {
       <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto scrollbar-hide">
         {TABS.map((tab) => {
           const active = activeTab === tab
-
           return (
             <button
               key={tab}
@@ -142,13 +123,11 @@ const videos = videosData?.pages?.flatMap((page) => {
       {/* ================= TWEETS ================= */}
       {activeTab === 'Tweets' && (
         <div className="space-y-6">
-          {isOwner && (
-            <TweetInput userId={channelId} />
-          )}
-
+          {isOwner && <TweetInput userId={channelId} />}
           <TweetFeed userId={channelId} />
         </div>
       )}
+
     </div>
   )
 }

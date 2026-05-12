@@ -7,7 +7,7 @@ import { formatCount } from '@/utils/formatCount'
 import { useAuthStore } from '@/stores/auth.store'
 
 export const VideoActions = ({ video }) => {
-    console.log(video)
+    // console.log(video)
   const { isLoggedIn } = useAuthStore()
   const [showPlaylist, setShowPlaylist] = useState(false)
 

@@ -5,33 +5,65 @@ import { QUERY_KEYS } from '@/constants/queryKeys'
 import { useAuthStore } from '@/stores/auth.store'
 import toast from 'react-hot-toast'
 
-export const useSubscription = ({ channelId, initialSubscribed = false, initialCount = 0 }) => {
-  const { isLoggedIn }   = useAuthStore()
-  const queryClient      = useQueryClient()
-  const [isSubscribed, setIsSubscribed] = useState(initialSubscribed)
-  const [subCount,     setSubCount]     = useState(initialCount)
+export const useSubscription = ({
+  channelId,
+  initialSubscribed = false,
+  initialCount = 0,
+  onSuccess,
+}) => {
+  const { isLoggedIn } = useAuthStore()
+  const queryClient = useQueryClient()
+
+  const [isSubscribed, setIsSubscribed] = useState(Boolean(initialSubscribed))
+  const [subCount, setSubCount] = useState(initialCount)
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => subscriptionService.toggle(channelId),
-    onMutate: () => {
-      setIsSubscribed(prev => !prev)
-      setSubCount(prev => isSubscribed ? prev - 1 : prev + 1)
+
+    // 🔥 Optimistic update
+    onMutate: async () => {
+      const prevState = { isSubscribed, subCount }
+
+      const nextState = !isSubscribed
+
+      setIsSubscribed(nextState)
+      setSubCount(prev => nextState ? prev + 1 : prev - 1)
+
+      return { prevState }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CHANNEL_SUBS(channelId) })
+
+    // ✅ success → backend is truth
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.VIDEO(channelId), // optional if used
+      })
+
+      if (onSuccess) onSuccess(data)
     },
-    onError: () => {
-      // Rollback
-      setIsSubscribed(prev => !prev)
-      setSubCount(prev => isSubscribed ? prev + 1 : prev - 1)
-      toast.error('Failed to update subscription.')
+
+    // ❌ rollback on error
+    onError: (err, variables, context) => {
+      if (context?.prevState) {
+        setIsSubscribed(context.prevState.isSubscribed)
+        setSubCount(context.prevState.subCount)
+      }
+
+      toast.error('Failed to update subscription')
     },
   })
 
   const toggleSubscription = () => {
-    if (!isLoggedIn) { toast.error('Please login to subscribe'); return }
+    if (!isLoggedIn) {
+      toast.error('Please login first')
+      return
+    }
     mutate()
   }
 
-  return { isSubscribed, subCount, toggleSubscription, isPending }
+  return {
+    isSubscribed,
+    subCount,
+    toggleSubscription,
+    isPending,
+  }
 }
