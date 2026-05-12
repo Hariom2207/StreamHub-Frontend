@@ -9,7 +9,7 @@ import { persist } from 'zustand/middleware'
 export const useUIStore = create(
   persist(
     (set) => ({
-      isSidebarOpen: true,
+      isSidebarOpen: false,
       theme: window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark' : 'light',
       activeModal: null,   // 'upload' | 'createPlaylist' | null

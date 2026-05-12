@@ -63,6 +63,8 @@ coverage/
 *.tmp
 *.temp
 
+public/temp/**
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
