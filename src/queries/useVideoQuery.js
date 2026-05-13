@@ -26,12 +26,13 @@ export const useGetVideos = (params = {}, options = {}) =>
     ...options, 
   })
 
-export const useGetVideoById = (videoId) =>
+export const useGetVideoById = (videoId, options = {}) =>
   useQuery({
     queryKey: QUERY_KEYS.VIDEO(videoId),
     queryFn: () => videoService.getById(videoId),
     enabled: !!videoId,
-    staleTime: config.staleTime,
+    staleTime: 5 * 60 * 1000,  // ← 5 minutes wapas — refetch nahi hoga turant
+    ...options,
   })
 
 

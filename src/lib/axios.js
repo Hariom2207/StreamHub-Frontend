@@ -4,10 +4,9 @@ import { config } from './config'
 const api = axios.create({
   baseURL: config.apiUrl,
   timeout: 120000,
-  withCredentials: true, // cookies automatically jayengi
+  withCredentials: true,
 })
 
-// ── RESPONSE INTERCEPTOR ──────
 let isRefreshing = false
 let queue = []
 
@@ -25,7 +24,6 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    //  Logout ya refresh-token pe retry nahi karna
     if (
       originalRequest?.url?.includes('/logout') ||
       originalRequest?.url?.includes('/refresh-token')
@@ -33,12 +31,10 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    //  Agar 401 nahi hai ya already retry ho chuka hai
     if (error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error)
     }
 
-    //  Agar already refresh chal raha hai → queue me daal
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         queue.push({ resolve, reject })
@@ -49,18 +45,13 @@ api.interceptors.response.use(
     isRefreshing = true
 
     try {
-      //  Cookie-based refresh (no token manually needed)
       await api.post('/users/refresh-token')
-
       flushQueue(null)
-
-      //  original request retry
       return api(originalRequest)
 
     } catch (refreshError) {
       flushQueue(refreshError)
 
-      //  Refresh bhi fail → full logout
       try {
         await api.post('/users/logout')
       } catch (_) {}
@@ -68,7 +59,16 @@ api.interceptors.response.use(
       localStorage.clear()
       sessionStorage.clear()
 
-      window.location.href = '/login'
+      // ✅ FIXED — public pages pe redirect mat karo
+      const publicPaths = ['/', '/watch', '/search', '/c/']
+      const isPublicPath = publicPaths.some(path =>
+        window.location.pathname === '/' ||
+        window.location.pathname.startsWith(path)
+      )
+
+      if (!isPublicPath) {
+        window.location.href = '/login'
+      }
 
       return Promise.reject(refreshError)
     } finally {

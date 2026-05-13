@@ -14,7 +14,6 @@ import { userService } from '@/services/user.service'
 import { useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/constants/queryKeys'
 
-/* ================= DESCRIPTION ================= */
 const Description = ({ text, views, createdAt }) => {
   const [expanded, setExpanded] = useState(false)
   const isLong = text?.length > 200
@@ -27,13 +26,11 @@ const Description = ({ text, views, createdAt }) => {
       <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">
         {formatCount(views || 0)} views · {timeAgo(createdAt)}
       </p>
-
       <p className={`text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap ${
         !expanded && isLong ? 'line-clamp-2' : ''
       }`}>
         {text || ''}
       </p>
-
       {isLong && (
         <button className="text-xs font-medium text-gray-900 dark:text-white mt-1">
           {expanded ? 'Show less' : '...more'}
@@ -45,49 +42,30 @@ const Description = ({ text, views, createdAt }) => {
 
 export const WatchPage = () => {
   const { videoId } = useParams()
-  const { user } = useAuthStore()
+  const { user }    = useAuthStore()
   const queryClient = useQueryClient()
 
-  /* ================= VIDEO FETCH ================= */
   const { data, isLoading, isError } = useGetVideoById(videoId, {
-    enabled: !!videoId, // 🔥 important fix
+    enabled: !!videoId,
   })
 
-  const video = useMemo(() => {
-    return data?.data || data || null
-  }, [data])
-
+  const video = useMemo(() => data?.data || data || null, [data])
   const owner = video?.owner || {}
-
   const isOwner = user?._id === owner?._id
 
-  /* ================= HISTORY ================= */
+  // ✅ Sirf logged in user ke liye history
   useEffect(() => {
-    if (videoId) {
+    if (videoId && user) {
       userService.addToHistory(videoId)
     }
-  }, [videoId])
+  }, [videoId, user])
 
-  /* ================= USER SYNC FIX ================= */
-  useEffect(() => {
-    if (user && videoId) {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.VIDEO(videoId),
-      })
-    }
-  }, [user, videoId])
-
-  /* ================= ERROR ================= */
   if (isError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-center">
         <div className="text-5xl">😵</div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-          Video not found
-        </h2>
-        <p className="text-sm text-gray-500">
-          This video may have been deleted or is unavailable.
-        </p>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Video not found</h2>
+        <p className="text-sm text-gray-500">This video may have been deleted or is unavailable.</p>
       </div>
     )
   }
@@ -95,7 +73,6 @@ export const WatchPage = () => {
   return (
     <div className="max-w-5xl mx-auto">
 
-      {/* ================= PLAYER ================= */}
       {isLoading || !video ? (
         <Skeleton className="w-full aspect-video rounded-xl" />
       ) : (
@@ -109,7 +86,6 @@ export const WatchPage = () => {
 
       <div className="mt-4 space-y-3">
 
-        {/* ================= TITLE ================= */}
         {isLoading || !video ? (
           <Skeleton className="h-6 w-3/4" />
         ) : (
@@ -118,7 +94,6 @@ export const WatchPage = () => {
           </h1>
         )}
 
-        {/* ================= CHANNEL ================= */}
         {isLoading || !video ? (
           <div className="flex items-center gap-3">
             <Skeleton className="w-10 h-10 rounded-full" />
@@ -129,16 +104,10 @@ export const WatchPage = () => {
           </div>
         ) : (
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-
             <div className="flex items-center gap-3 flex-1">
               <Link to={`/c/${owner?.username}`}>
-                <Avatar
-                  src={owner?.avatar}
-                  alt={owner?.fullName}
-                  size="md"
-                />
+                <Avatar src={owner?.avatar} alt={owner?.fullName} size="md" />
               </Link>
-
               <div>
                 <Link
                   to={`/c/${owner?.username}`}
@@ -146,31 +115,37 @@ export const WatchPage = () => {
                 >
                   {owner?.fullName}
                 </Link>
-
                 <p className="text-xs text-gray-500">
                   {formatCount(owner?.subscribersCount || 0)} subscribers
                 </p>
               </div>
 
+              {/* ✅ onSuccessCallback mein cache update karo */}
               {!isOwner && (
                 <SubscribeButton
                   channelId={owner?._id}
-                  initialSubscribed={Boolean(owner?.isSubscribed)} // 🔥 FIXED
+                  initialSubscribed={Boolean(owner?.isSubscribed)}
                   subscriberCount={owner?.subscribersCount || 0}
-                  onSuccessCallback={() =>
-                    queryClient.invalidateQueries({
-                      queryKey: QUERY_KEYS.VIDEO(videoId),
+                  onSuccessCallback={(data) => {
+                    queryClient.setQueryData(QUERY_KEYS.VIDEO(videoId), (old) => {
+                      if (!old) return old
+                      return {
+                        ...old,
+                        owner: {
+                          ...old.owner,
+                          isSubscribed: data?.isSubscribed,
+                          subscribersCount: data?.subscribersCount,
+                        }
+                      }
                     })
-                  }
+                  }}
                 />
               )}
             </div>
-
             <VideoActions video={video} />
           </div>
         )}
 
-        {/* ================= DESCRIPTION ================= */}
         {video?.description && !isLoading && (
           <Description
             text={video.description}
@@ -179,7 +154,6 @@ export const WatchPage = () => {
           />
         )}
 
-        {/* ================= COMMENTS ================= */}
         {!isLoading && video && (
           <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
             <CommentSection

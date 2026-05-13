@@ -1,7 +1,6 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { subscriptionService } from '@/services/subscription.service'
-import { QUERY_KEYS } from '@/constants/queryKeys'
 import { useAuthStore } from '@/stores/auth.store'
 import toast from 'react-hot-toast'
 
@@ -12,42 +11,30 @@ export const useSubscription = ({
   onSuccess,
 }) => {
   const { isLoggedIn } = useAuthStore()
-  const queryClient = useQueryClient()
 
   const [isSubscribed, setIsSubscribed] = useState(Boolean(initialSubscribed))
-  const [subCount, setSubCount] = useState(initialCount)
+  const [subCount, setSubCount]         = useState(initialCount)
+
+  // Sirf naya channel aane pe reset karo
+  useEffect(() => {
+    setIsSubscribed(Boolean(initialSubscribed))
+    setSubCount(initialCount)
+  }, [channelId])  // ← channelId pe depend — initialSubscribed pe nahi!
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => subscriptionService.toggle(channelId),
 
-    // 🔥 Optimistic update
-    onMutate: async () => {
-      const prevState = { isSubscribed, subCount }
+    onSuccess: (response) => {
+      const data = response?.data || response
 
-      const nextState = !isSubscribed
+      // Backend ka exact response use karo
+      setIsSubscribed(Boolean(data?.isSubscribed))
+      setSubCount(data?.subscribersCount ?? subCount)
 
-      setIsSubscribed(nextState)
-      setSubCount(prev => nextState ? prev + 1 : prev - 1)
-
-      return { prevState }
+      if (onSuccess) onSuccess(data)  // WatchPage ko bhi batao
     },
 
-    // ✅ success → backend is truth
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.VIDEO(channelId), // optional if used
-      })
-
-      if (onSuccess) onSuccess(data)
-    },
-
-    // ❌ rollback on error
-    onError: (err, variables, context) => {
-      if (context?.prevState) {
-        setIsSubscribed(context.prevState.isSubscribed)
-        setSubCount(context.prevState.subCount)
-      }
-
+    onError: () => {
       toast.error('Failed to update subscription')
     },
   })
