@@ -14,16 +14,24 @@ import { getErrorMessage } from '@/utils/errorHandler'
 
 export const useGetVideos = (params = {}, options = {}) =>
   useInfiniteQuery({
-    queryKey: [QUERY_KEYS.VIDEOS, params],
+    //  Primitive values — stable query key
+    queryKey: [
+      QUERY_KEYS.VIDEOS,
+      params.sortBy    ?? '',
+      params.sortType  ?? '',
+      params.userId    ?? '',
+      params.query     ?? '',
+    ],
     queryFn: ({ pageParam = 1 }) =>
       videoService.getAll({ ...params, page: pageParam, limit: config.pageSize }),
-    
+
     getNextPageParam: (lastPage, pages) => {
-      if (lastPage?.docs?.length < config.pageSize) return undefined
+      const items = lastPage?.docs ?? lastPage?.videos ?? []
+      if (items.length < config.pageSize) return undefined
       return pages.length + 1
     },
     staleTime: config.staleTime,
-    ...options, 
+    ...options,
   })
 
 export const useGetVideoById = (videoId, options = {}) =>
@@ -31,10 +39,9 @@ export const useGetVideoById = (videoId, options = {}) =>
     queryKey: QUERY_KEYS.VIDEO(videoId),
     queryFn: () => videoService.getById(videoId),
     enabled: !!videoId,
-    staleTime: 5 * 60 * 1000,  // ← 5 minutes wapas — refetch nahi hoga turant
+    staleTime: 5 * 60 * 1000,
     ...options,
   })
-
 
 export const useSyncVideoLikeCache = () => {
   const queryClient = useQueryClient()
@@ -44,7 +51,6 @@ export const useSyncVideoLikeCache = () => {
       QUERY_KEYS.VIDEO(videoId),
       (oldData) => {
         if (!oldData) return oldData
-
         return {
           ...oldData,
           data: {
@@ -66,16 +72,11 @@ export const useUploadVideo = () => {
   return useMutation({
     mutationFn: ({ formData, onProgress }) =>
       videoService.upload(formData, onProgress),
-
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VIDEOS] })
-      queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS],
-      })
-
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS] })
       toast.success('Video uploaded successfully!')
     },
-
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
@@ -84,59 +85,38 @@ export const useUpdateVideo = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ videoId, data }) =>
-      videoService.update(videoId, data),
-
+    mutationFn: ({ videoId, data }) => videoService.update(videoId, data),
     onSuccess: (_, { videoId }) => {
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.VIDEO(videoId),
-      })
-
-      queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS],
-      })
-
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.VIDEO(videoId) })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS] })
       toast.success('Video updated!')
     },
-
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
-
 
 export const useDeleteVideo = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: (videoId) => videoService.delete(videoId),
-
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.VIDEOS] })
-      queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS],
-      })
-
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS] })
       toast.success('Video deleted!')
     },
-
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
-
 
 export const useTogglePublish = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (videoId) =>
-      videoService.togglePublish(videoId),
-
+    mutationFn: (videoId) => videoService.togglePublish(videoId),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS],
-      })
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.DASHBOARD_VIDEOS] })
     },
-
     onError: (err) => toast.error(getErrorMessage(err)),
   })
 }
@@ -148,6 +128,5 @@ export const useGetLikedVideos = () =>
       import('@/services/like.service').then(
         (m) => m.likeService.getLikedVideos()
       ),
-
     staleTime: config.staleTime,
   })
