@@ -14,6 +14,7 @@ import { userService } from '@/services/user.service'
 import { useQueryClient } from '@tanstack/react-query'
 import { QUERY_KEYS } from '@/constants/queryKeys'
 
+/* ================= DESCRIPTION ================= */
 const Description = ({ text, views, createdAt }) => {
   const [expanded, setExpanded] = useState(false)
   const isLong = text?.length > 200
@@ -40,6 +41,7 @@ const Description = ({ text, views, createdAt }) => {
   )
 }
 
+/* ================= WATCH PAGE ================= */
 export const WatchPage = () => {
   const { videoId } = useParams()
   const { user }    = useAuthStore()
@@ -49,30 +51,37 @@ export const WatchPage = () => {
     enabled: !!videoId,
   })
 
-  const video = useMemo(() => data?.data || data || null, [data])
-  const owner = video?.owner || {}
+  const video   = useMemo(() => data?.data || data || null, [data])
+  const owner   = video?.owner || {}
   const isOwner = user?._id === owner?._id
 
-  // ✅ Sirf logged in user ke liye history
+  // Sirf logged in user ke liye history
   useEffect(() => {
     if (videoId && user) {
       userService.addToHistory(videoId)
     }
   }, [videoId, user])
 
+  /* ================= ERROR ================= */
   if (isError) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-center">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 text-center px-4">
         <div className="text-5xl">😵</div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Video not found</h2>
-        <p className="text-sm text-gray-500">This video may have been deleted or is unavailable.</p>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Video not found
+        </h2>
+        <p className="text-sm text-gray-500">
+          This video may have been deleted or is unavailable.
+        </p>
       </div>
     )
   }
 
+  /* ================= MAIN ================= */
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto px-3 pb-20">
 
+      {/* ===== PLAYER ===== */}
       {isLoading || !video ? (
         <Skeleton className="w-full aspect-video rounded-xl" />
       ) : (
@@ -84,34 +93,42 @@ export const WatchPage = () => {
         />
       )}
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-3 space-y-3">
 
+        {/* ===== TITLE ===== */}
         {isLoading || !video ? (
           <Skeleton className="h-6 w-3/4" />
         ) : (
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h1 className="text-base font-semibold text-gray-900 dark:text-white leading-snug">
             {video?.title}
           </h1>
         )}
 
+        {/* ===== CHANNEL + SUBSCRIBE + ACTIONS ===== */}
         {isLoading || !video ? (
           <div className="flex items-center gap-3">
             <Skeleton className="w-10 h-10 rounded-full" />
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-3 w-24" />
             </div>
           </div>
         ) : (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-3 flex-1">
-              <Link to={`/c/${owner?.username}`}>
-                <Avatar src={owner?.avatar} alt={owner?.fullName} size="md" />
+          <>
+            {/* Channel info + Subscribe button */}
+            <div className="flex items-center gap-3">
+              <Link to={`/c/${owner?.username}`} className="shrink-0">
+                <Avatar
+                  src={owner?.avatar}
+                  alt={owner?.fullName}
+                  size="md"
+                />
               </Link>
-              <div>
+
+              <div className="flex-1 min-w-0">
                 <Link
                   to={`/c/${owner?.username}`}
-                  className="text-sm font-medium text-gray-900 dark:text-white hover:text-red-600 transition-colors"
+                  className="text-sm font-medium text-gray-900 dark:text-white hover:text-red-600 transition-colors block truncate"
                 >
                   {owner?.fullName}
                 </Link>
@@ -120,32 +137,39 @@ export const WatchPage = () => {
                 </p>
               </div>
 
-              {/* ✅ onSuccessCallback mein cache update karo */}
+              {/* Subscribe button — sirf dusre ka channel */}
               {!isOwner && (
-                <SubscribeButton
-                  channelId={owner?._id}
-                  initialSubscribed={Boolean(owner?.isSubscribed)}
-                  subscriberCount={owner?.subscribersCount || 0}
-                  onSuccessCallback={(data) => {
-                    queryClient.setQueryData(QUERY_KEYS.VIDEO(videoId), (old) => {
-                      if (!old) return old
-                      return {
-                        ...old,
-                        owner: {
-                          ...old.owner,
-                          isSubscribed: data?.isSubscribed,
-                          subscribersCount: data?.subscribersCount,
+                <div className="shrink-0">
+                  <SubscribeButton
+                    channelId={owner?._id}
+                    initialSubscribed={Boolean(owner?.isSubscribed)}
+                    subscriberCount={owner?.subscribersCount || 0}
+                    onSuccessCallback={(data) => {
+                      queryClient.setQueryData(QUERY_KEYS.VIDEO(videoId), (old) => {
+                        if (!old) return old
+                        return {
+                          ...old,
+                          owner: {
+                            ...old.owner,
+                            isSubscribed: data?.isSubscribed,
+                            subscribersCount: data?.subscribersCount,
+                          }
                         }
-                      }
-                    })
-                  }}
-                />
+                      })
+                    }}
+                  />
+                </div>
               )}
             </div>
-            <VideoActions video={video} />
-          </div>
+
+            {/* Like / Save — alag row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <VideoActions video={video} />
+            </div>
+          </>
         )}
 
+        {/* ===== DESCRIPTION ===== */}
         {video?.description && !isLoading && (
           <Description
             text={video.description}
@@ -154,6 +178,7 @@ export const WatchPage = () => {
           />
         )}
 
+        {/* ===== COMMENTS ===== */}
         {!isLoading && video && (
           <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
             <CommentSection
